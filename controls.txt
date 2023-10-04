@@ -1,0 +1,8 @@
+W - wireframe
+S - solid 
+A - move left
+D - move right
+Up arrow - increase dump box angle 
+Down arrow - decrease dump box angle
+
+Additionally, you can also change the movement speed of the truck by adjusting it through AntTweak. 

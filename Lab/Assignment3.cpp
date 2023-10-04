@@ -16,7 +16,7 @@ float aspectRatio = static_cast<float>(gWindowWidth) / gWindowHeight;
 int totalSlices = 0;
 
 // frame stats
-float gFrameRate = 144.0f;
+float gFrameRate = 60.0f;
 float gFrameTime = 1 / gFrameRate;
 
 // scene content

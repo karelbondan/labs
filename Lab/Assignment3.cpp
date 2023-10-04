@@ -7,59 +7,49 @@
 #define NUM_OF_MODEL 3
 #define NUM_OF_ORBIT 2
 
-// global variables
 // settings
 unsigned int gWindowWidth = 1400;
 unsigned int gWindowHeight = 768;
+
+// global variables
 float aspectRatio = static_cast<float>(gWindowWidth) / gWindowHeight;
+int totalSlices = 0;
 
 // frame stats
-float gFrameRate = 60.0f;
+float gFrameRate = 144.0f;
 float gFrameTime = 1 / gFrameRate;
 
 // scene content
 ShaderProgram gShader;	
 
 ShaderProgram gShaderOrbitLine;	
-GLuint gIBO = 0;		// index buffer object identifier
 GLuint gVBO = 0;		// vertex buffer object identifier
 GLuint gVAO = 0;		// vertex array object identifier
 
-glm::mat4 gViewMatrix;			
-glm::mat4 gProjectionMatrix;	
-std::map<std::string, Material> gMaterials; 
-std::map<int, glm::mat4> gModelMatrix;		
-std::map<int, glm::mat4> gModelMatrixOrbitLine;		
-std::map<int, SimpleModel> gModel;
+std::map<std::string, Material> gMaterials; // holder for objects' selected materials
+std::map<int, glm::mat4> gModelMatrix; // model matrix for objects
+std::map<int, glm::mat4> gModelMatrixOrbitLine; // model matrix for orbit lines
+std::map<int, SimpleModel> gModel; // holder for objects' selected models
 std::vector<GLfloat> gVertices; // vertex positions of orbit lines
 
-Light gLight;			
-//Material gMaterial;		// material properties -> unused
-//SimpleModel gModel;		
+Light gLight; // light object		
 
 // controls
-bool gWireframe = false;	
+bool gWireframe = false; 
 float gOrbitSpeed[2] = { 0.5f, 1.0f };
 float gRotationSpeed[2] = { 1.0f, 1.0f };
-int totalSlices = 0;
 
-// camera
-const float gCamMoveSensitivity = 1.0f;
-const float gCamRotateSensitivity = 0.1f;
-Camera gCamera;
+Camera gCamera; // virtual camera
 
 // material type
-enum class MaterialType { PEARL, JADE, SOMEOTHERMATERIAL }; 
+enum class MaterialType { PEARL, JADE, SOMEOTHERMATERIAL };
 enum class ModelType { SPHERE, SUZANNE, TORUS, CUBE, CONE, CYLINDER };
-//MaterialType gMaterialSelected = MaterialType::PEARL; // record what material is selected
-//ModelType gModelSelected = ModelType::SPHERE; // record what material is selected
-//ModelType gPreviousModel = ModelType::SPHERE; // previous selected model; optimization purposes
 
 std::map<int, ModelType> gModelSelected; // record what material is selected
 std::map<int, ModelType> gPreviousModel; // previous selected model; optimization purposes
 std::map<int, MaterialType> gMaterialSelected; // record what material is selected
 
-
+// function to convert enum definitions to string
 const char* model_type_to_string(ModelType v)
 {
 	switch (v)
@@ -80,43 +70,21 @@ static void load_model(int object_index, std::string name) {
 	gModel[object_index].loadModel(modelPath.c_str());
 }
 
+// function to generate orbit line
 void generate_circle(const float radius, const unsigned int slices, const float scale_factor, std::vector<GLfloat>& vertices)
 {
-	//float slice_angle = M_PI * 2.0f / slices;	// angle of each slice
-	//float angle = 0;			// angle used to generate x and y coordinates
-	//float x, y, z = 0.0f;		// (x, y, z) coordinates
-
-	// generate vertex coordinates for a circle
-	//for (int i = 0; i <= slices; i++)
-	//{
-	//	x = radius * cos(angle);
-	//	z = radius * sin(angle);
-
-	//	vertices.push_back(x);
-	//	vertices.push_back(y);
-	//	vertices.push_back(z);
-
-	//	std::cout << x << " " << y << " " << z << std::endl;
-
-	//	// update to next angle
-	//	angle += slice_angle;
-	//}
 	for (float i = 0; i < 2 * M_PI; i += 0.01)
 	{
 		float x = radius * cos(i);
-		float y = 0.0f;
+		float y = 0.0f; // rotation axis
 		float z = radius * sin(i);
 
 		vertices.push_back(x);
 		vertices.push_back(y);
 		vertices.push_back(z);
 
-		std::cout << x << " " << y << " " << z << std::endl;
-
+		std::cout << x << " " << y << " " << z << std::endl; // debugging
 		totalSlices++;
-
-		// update to next angle
-		//angle += slice_angle;
 	}
 }
 
@@ -150,18 +118,8 @@ static void init(GLFWwindow* window)
 	gModelMatrixOrbitLine[1] = glm::mat4(1.0f);
 	
 	gVertices.clear();
-	
-	/*gVertices.push_back(0.0f);
-	gVertices.push_back(0.0f);
-	gVertices.push_back(0.0f);*/
+
 	generate_circle(3.0f, 32, aspectRatio, gVertices);
-	/*gVertices.push_back(1.0f);
-	gVertices.push_back(-5.0f);
-	gVertices.push_back(3.0f);*/
-	/*gVertices.push_back(0.0f);
-	gVertices.push_back(0.0f);
-	gVertices.push_back(0.0f);*/
-	//generate_circle(2.5f, 32, aspectRatio, gVertices);
 
 	glGenBuffers(1, &gVBO);					// generate unused VBO identifier
 	glBindBuffer(GL_ARRAY_BUFFER, gVBO);	// bind the VBO
@@ -176,21 +134,11 @@ static void init(GLFWwindow* window)
 	glEnableVertexAttribArray(0);	// enable vertex attributes
 
 	// compile and link a vertex and fragment shader pair
+	// switch to another shader to be able to render 3d things
 	gShader.compileAndLink("lighting.vert", "directionalLight.frag");
 
 	// initialise view matrix
-	// in this case the code below is not used since we're using the virtual camera
-	//gViewMatrix = glm::lookAt(glm::vec3(0.0f, 2.0f, 4.0f), 
-	//	glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
-
-	// initialise projection matrix
-	// in this case the code below is not used since we're using the virtual camera
-	//gProjectionMatrix = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 10.0f);
-
-	// initialise view matrix
 	gCamera.setViewMatrix(glm::vec3(0.0f, 3.0f, 9.0f),
-	//gCamera.setViewMatrix(glm::vec3(0.0f, 0.0f, 4.0f), // front view
-	//gCamera.setViewMatrix(glm::vec3(0.0f, 5.0f, 0.01f), // top down 
 		glm::vec3(0.0f, 0.0f, 0.0f));
 
 	// initialise projection matrix
@@ -202,29 +150,20 @@ static void init(GLFWwindow* window)
 	gLight.Ld = glm::vec3(0.8f);
 	gLight.Ls = glm::vec3(0.8f);
 
-	// initialise material properties
-	/*for (int i = 0; i < NUM_OF_MODEL; i++) {
-	}*/
-	/*gMaterial.Ka = glm::vec3(0.33f, 0.22f, 0.03f);
-	gMaterial.Kd = glm::vec3(0.78f, 0.57f, 0.11f);
-	gMaterial.Ks = glm::vec3(0.99f, 0.94f, 0.8f);
-	gMaterial.shininess = 27.9f;*/
-
 	// initialise model matrices
 	gModelMatrix[0] = glm::mat4(1.0f);
 	gModelMatrix[1] = glm::mat4(1.0f);
 	gModelMatrix[2] = glm::mat4(1.0f);
 
-	// load model
-	//gModel.loadModel("./models/sphere.obj");
+	// load and set initial models properties
 	load_model(0, "sphere");
 	load_model(1, "suzanne");
 	load_model(2, "cube");
 
-	// set initial models
 	gModelSelected[0] = gPreviousModel[0] = ModelType::SPHERE;
 	gModelSelected[1] = gPreviousModel[1] = ModelType::SUZANNE;
 	gModelSelected[2] = gPreviousModel[2] = ModelType::CUBE;
+
 	gMaterialSelected[0] = MaterialType::SOMEOTHERMATERIAL;
 	gMaterialSelected[1] = MaterialType::JADE;
 	gMaterialSelected[2] = MaterialType::PEARL;
@@ -269,20 +208,12 @@ static void render_scene()
 	// clear colour buffer and depth buffer
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-	// use the simple shader first to render the lines
+	// use the simple shader first to render the orbit lines
 	gShaderOrbitLine.use();
 
-	// put something here to render the lines lol 
-	// holy shit i did it
+	glViewport(130, 0, gWindowWidth, gWindowHeight); // set viewport
+	glBindVertexArray(gVAO); // make VAO active
 
-	glViewport(130, 0, gWindowWidth, gWindowHeight);
-
-	glBindVertexArray(gVAO);			// make VAO active
-	//gShader.setUniform("uModelMatrix", gModelMatrixOrbitLine[0]);
-	//glDrawArrays(GL_LINE_LOOP, 0, 34);	// render the vertices based on primitive type
-	//gShader.setUniform("uModelMatrix", gModelMatrixOrbitLine[1]);
-	//glDrawArrays(GL_LINE_LOOP, 34, 18);	// render the vertices based on primitive type
-	
 	glm::mat4 MVPOrbit;
 
 	for (int i = 0; i < NUM_OF_ORBIT; i++) {
@@ -293,7 +224,7 @@ static void render_scene()
 		glDrawArrays(GL_LINE_LOOP, 0, totalSlices);	// render the vertices based on primitive type
 	}
 
-	glFlush();
+	glFlush(); // flush graphics pipeline
 
 	// use shaders associated with the shader program
 	gShader.use();	
@@ -303,14 +234,6 @@ static void render_scene()
 	gShader.setUniform("uLight.La", gLight.La);
 	gShader.setUniform("uLight.Ld", gLight.Ld);
 	gShader.setUniform("uLight.Ls", gLight.Ls);
-
-
-
-	// set material properties - single material
-	/*gShader.setUniform("uMaterial.Ka", gMaterial.Ka);
-	gShader.setUniform("uMaterial.Kd", gMaterial.Kd);
-	gShader.setUniform("uMaterial.Ks", gMaterial.Ks);
-	gShader.setUniform("uMaterial.shininess", gMaterial.shininess);*/
 
 	// set material properties based on the selected material - multiple materials
 	for (int i = 0; i < NUM_OF_MODEL; i++) {
@@ -327,7 +250,6 @@ static void render_scene()
 		gShader.setUniform("uMaterial.shininess", gMaterials[material].shininess);
 
 		// calculate matrices
-		//glm::mat4 MVP = gProjectionMatrix * gViewMatrix * gModelMatrix;
 		glm::mat4 MVP = gCamera.getProjMatrix() * gCamera.getViewMatrix() * gModelMatrix[i];
 		glm::mat3 normalMatrix = glm::mat3(glm::transpose(glm::inverse(gModelMatrix[i])));
 
@@ -338,8 +260,6 @@ static void render_scene()
 
 		// render model
 		gModel[i].drawModel();
-		//gModel[1].drawModel();
-		//gModel[2].drawModel();
 	}
 
 	// set viewing position
@@ -463,15 +383,7 @@ TwBar* create_UI(const std::string name)
 	};
 	TwType materialOptionsObject3 = TwDefineEnum("materialType", materialValueObject3, 3);
 	TwAddVarRW(twBar, "Material 3", materialOptionsObject3, &gMaterialSelected[2], " group='Object 3' ");
-	
 	TwAddVarRW(twBar, "Orbit Speed 3", TW_TYPE_FLOAT, &gOrbitSpeed[1], " group='Object 3' min=-2.0 max=2.0 step=0.01");
-
-	// light controls
-	/*TwAddVarRW(twBar, "Direction", TW_TYPE_DIR3F, &gLight.dir, " group='Light' opened=true ");
-	TwAddVarRW(twBar, "La", TW_TYPE_COLOR3F, &gLight.La, " group='Light' ");
-	TwAddVarRW(twBar, "Ld", TW_TYPE_COLOR3F, &gLight.Ld, " group='Light' ");
-	TwAddVarRW(twBar, "Ls", TW_TYPE_COLOR3F, &gLight.Ls, " group='Light' ");*/
-
 	return twBar;
 }
 

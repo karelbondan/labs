@@ -1,3 +1,13 @@
-## LAB repo for UOW Semester 7
+# CSCI336 - Interactive Computer Graphics
+## Assignment 3
+### Description
 
-All available labs can be viewed by choosing the correct branch. 
+Make a 3D scene where there's an object in the center, with a smaller object orbiting it, with another smaller object orbiting the second object. There must be a user interface that contains certain things mentioned in the requirements, with an orbit line for the orbiting objects. 
+
+### Time required to finish
+
+2 days 
+
+### Hardest section of the assignment
+
+Making the orbit line

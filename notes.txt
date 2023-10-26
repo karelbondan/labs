@@ -1,0 +1,7 @@
+Features:
+As described in the requirement pdf
+
+Submission log: 
+Thursday, 26 October 2023, 8:47 PM	: first upload 
+Now					: code cleanup (removed commented lines), added code explanations
+

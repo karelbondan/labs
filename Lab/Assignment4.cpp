@@ -15,14 +15,8 @@ const float gCamRotateSensitivity = 0.1f;
 float gFrameRate = 60.0f;
 float gFrameTime = 1 / gFrameRate;
 
-// scene content
-//ShaderProgram gShader;	// shader program object
-
-// using multiple shaders
+// multiple shader support 
 std::map<std::string, ShaderProgram> gShader;
-
-//GLuint gVBO = 0;		// vertex buffer object identifier
-//GLuint gVAO = 0;		// vertex array object identifier
 
 // multiple VAOs and VBOs
 GLuint gVBO[3];
@@ -58,25 +52,38 @@ static void init(GLFWwindow* window)
 
 	glEnable(GL_DEPTH_TEST);	// enable depth buffer test
 
-	// compile and link a vertex and fragment shader pair
-	
-	//gShader.compileAndLink("lighting.vert", "reflection.frag");
-
-	// using multiple shaders
+	// compile and link shaders
 	gShader["Reflection"].compileAndLink("reflection.vert", "reflection.frag");
 	gShader["NormalMap"].compileAndLink("normalMap.vert", "normalMap.frag");
 	gShader["LightingTexture"].compileAndLink("lightingAndTexture.vert", "lightingAndTexture.frag");
 	gShader["LightingCubemap"].compileAndLink("lightingAndCubemap.vert", "lightingAndCubemap.frag");
 	gShader["Divider"].compileAndLink("divider.vert", "divider.frag");
 
+
+	// ======CAMERAS======
+	
+	/*
+	There are four cameras used to render the scenes. The first camera (gCamera[0]) is the one that 
+	the user can control. The second camera (gCamera[1]) is the one on the bottom left. The third camera
+	is the one on the upper right. And the fourth camera is the one used to draw the divider lines (to
+	distinctly clarify the boundary for each viewport. The fourth camera uses ortographic projection
+	since it will be weird to view the lines in perspective mode. 
+	*/
+	
 	// initialise view matrix
 	gCamera[0].setViewMatrix(glm::vec3(0.0f, 6.0f, 3.0f),
 		glm::vec3(0.0f, 0.0f, 0.0f));
 
-	// initialise projection matrix
+	// initialise projection matrix 
 	gCamera[0].setProjMatrix(glm::perspective(glm::radians(45.0f),
 		static_cast<float>(gWindowWidth) / gWindowHeight, 0.1f, 20.0f));
 
+	/*
+	Except camera 4, all cameras will use the same projection matrix, hence why the cameras are equalled to the 
+	first camera to simplify the process of setting the projection matrix. The only ones different for the cameras
+	are the position and the lookAt vectors, hence why the view matrix for each camera are set below. For camera 4, 
+	the projection matrix and the view matrix will be different from the rest of the cameras. 
+	*/
 	gCamera[1] = gCamera[2] = gCamera[0];
 
 	gCamera[1].setViewMatrix(glm::vec3(0.0f, 0.85f, 2.5f),
@@ -104,10 +111,6 @@ static void init(GLFWwindow* window)
 	gMaterial["Floor"].Ks = glm::vec3(0.2f, 0.7f, 1.0f);
 	gMaterial["Floor"].shininess = 40.0f;
 
-	/*gMaterial["Cube"].Ka = glm::vec3(0.2f);
-	gMaterial["Cube"].Kd = glm::vec3(1.0f, 0.7f, 0.2f);
-	gMaterial["Cube"].Ks = glm::vec3(1.0f, 0.7f, 0.2f);
-	gMaterial["Cube"].shininess = 10.0f;*/
 	gMaterial["Cube"].Ka = glm::vec3(0.25f, 0.21f, 0.21f);
 	gMaterial["Cube"].Kd = glm::vec3(1.0f, 0.83f, 0.83f);
 	gMaterial["Cube"].Ks = glm::vec3(0.3f, 0.3f, 0.3f);
@@ -138,7 +141,7 @@ static void init(GLFWwindow* window)
 	gTexture["Smile"].generate("./images/smile.bmp");
 	gTexture["Checkerboard"].generate("./images/check.bmp");
 	
-	// load cube environment map texture
+	// load cube environment map texture (for torus)
 	gTexture["CubeEnvironment"].generate(
 		"./images/cm_front.bmp", "./images/cm_back.bmp",
 		"./images/cm_left.bmp", "./images/cm_right.bmp",
@@ -146,6 +149,9 @@ static void init(GLFWwindow* window)
 
 	// load model
 	gModel[0].loadModel("./models/cube.obj", true);
+
+	// load torus model. the environment map doesn't require the model 
+	// loader to flag the object as texture enabled
 	gModel[1].loadModel("./models/torus.obj");
 
 	// vertex positions and normals
@@ -202,6 +208,7 @@ static void init(GLFWwindow* window)
 	};
 
 	// =======FLOOR=========
+	
 	// create VBO
 	glGenBuffers(1, &gVBO[0]);					// generate unused VBO identifier
 	glBindBuffer(GL_ARRAY_BUFFER, gVBO[0]);
@@ -212,10 +219,7 @@ static void init(GLFWwindow* window)
 	glBindVertexArray(gVAO[0]);				// create VAO
 	glBindBuffer(GL_ARRAY_BUFFER, gVBO[0]);	// bind the VBO
 
-	//glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexNormal),
-	//	reinterpret_cast<void*>(offsetof(VertexNormal, position)));		// specify format of position data
-	//glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexNormal),
-	//	reinterpret_cast<void*>(offsetof(VertexNormal, normal)));		// specify format of colour data
+	// use VertexNormTex since the floor is using texture
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexNormTex),
 		reinterpret_cast<void*>(offsetof(VertexNormTex, position)));		// specify format of position data
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexNormTex),
@@ -239,6 +243,8 @@ static void init(GLFWwindow* window)
 	glBindVertexArray(gVAO[1]);				// create VAO
 	glBindBuffer(GL_ARRAY_BUFFER, gVBO[1]);	// bind the VBO
 
+	// use VertexNormTanTex because the walls use normal maps. tangent, bitangent, and the one i forgot are used 
+	// for the normal map to create illusion of depth. 
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexNormTanTex),
 		reinterpret_cast<void*>(offsetof(VertexNormTanTex, position)));		// specify format of position data
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexNormTanTex),
@@ -265,6 +271,7 @@ static void init(GLFWwindow* window)
 	glBindVertexArray(gVAO[2]);				// create VAO
 	glBindBuffer(GL_ARRAY_BUFFER, gVBO[2]);	// bind the VBO
 
+	// use simple VertexColor since it only draws line 
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(VertexColor),
 		reinterpret_cast<void*>(offsetof(VertexColor, position)));		// specify format of position data
 	glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(VertexColor),
@@ -280,7 +287,7 @@ static void update_scene(GLFWwindow* window)
 	// stores camera forward/back, up/down and left/right movements
 	float moveForward = 0.0f;
 	float moveRight = 0.0f;
-	float rotationAngle = 0.0f;
+	float rotationAngle = 0.0f; // for rotating torus
 
 	rotationAngle += gRotationSpeed * gFrameTime;
 
@@ -335,10 +342,11 @@ void draw_floor(float alpha, Camera gCamera)
 	gShader["Reflection"].setUniform("uAlpha", alpha);
 	gShader["Reflection"].setUniform("uTextureSampler", 3);
 
+	// add texture to the floor 
 	glActiveTexture(GL_TEXTURE3);
 	gTexture["Checkerboard"].bind();
 
-	glBindVertexArray(gVAO[0]);				// make VAO active
+	glBindVertexArray(gVAO[0]);				// make vao 0 active, the one for the floor
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);	// render the vertices
 }
 
@@ -358,8 +366,9 @@ void draw_objects(bool reflection, Camera gCamera)
 		lightPosition = glm::vec3(reflectMatrix * glm::vec4(lightPosition, 1.0f));
 	}
 
-	// use the shaders associated with the shader program
-	//gShader["Reflection"].use();
+	// =======CUBE=========
+	
+	// use lighting texture shader for the cube (texure and lighting) 
 	gShader["LightingTexture"].use();
 
 	// set light properties
@@ -371,8 +380,6 @@ void draw_objects(bool reflection, Camera gCamera)
 
 	// set viewing position
 	gShader["LightingTexture"].setUniform("uViewpoint", gCamera.getPosition());
-
-	// =======CUBE=========
 
 	// set material properties
 	gShader["LightingTexture"].setUniform("uMaterial.Ka", gMaterial["Cube"].Ka);
@@ -390,10 +397,7 @@ void draw_objects(bool reflection, Camera gCamera)
 	gShader["LightingTexture"].setUniform("uModelMatrix", modelMatrix);
 	gShader["LightingTexture"].setUniform("uNormalMatrix", normalMatrix);
 
-	//gShader["Reflection"].setUniform("uAlpha", 1.0f);
-
 	gShader["LightingTexture"].setUniform("uTextureSampler", 2);
-	//gShader["LightingTexture"].setUniform("uFactor", gFactor);
 
 	glActiveTexture(GL_TEXTURE2);
 	gTexture["Smile"].bind();
@@ -403,6 +407,7 @@ void draw_objects(bool reflection, Camera gCamera)
 
 	// =======TORUS=========
 
+	// use the lighting cube map for the torus (environment map)
 	gShader["LightingCubemap"].use();
 
 	// set light properties
@@ -411,7 +416,6 @@ void draw_objects(bool reflection, Camera gCamera)
 	gShader["LightingCubemap"].setUniform("uLight.Ld", gLight.Ld);
 	gShader["LightingCubemap"].setUniform("uLight.Ls", gLight.Ls);
 	gShader["LightingCubemap"].setUniform("uLight.att", gLight.att);
-
 
 	// set viewing position
 	gShader["LightingCubemap"].setUniform("uViewpoint", gCamera.getPosition());
@@ -427,11 +431,6 @@ void draw_objects(bool reflection, Camera gCamera)
 	MVP = gCamera.getProjMatrix() * gCamera.getViewMatrix() * modelMatrix;
 	normalMatrix = glm::mat3(glm::transpose(glm::inverse(modelMatrix)));
 
-	//// set uniform variables
-	//gShader["Reflection"].setUniform("uModelViewProjectionMatrix", MVP);
-	//gShader["Reflection"].setUniform("uModelMatrix", modelMatrix);
-	//gShader["Reflection"].setUniform("uNormalMatrix", normalMatrix);
-
 	// set uniform variables
 	gShader["LightingCubemap"].setUniform("uModelViewProjectionMatrix", MVP);
 	gShader["LightingCubemap"].setUniform("uModelMatrix", modelMatrix);
@@ -446,7 +445,9 @@ void draw_objects(bool reflection, Camera gCamera)
 
 	gModel[1].drawModel();
 
-	// use the normal map shader
+	// =======WALL=========
+
+	// use the normal map shader (texture and normal map)
 	gShader["NormalMap"].use();
 
 	// set light properties
@@ -455,8 +456,6 @@ void draw_objects(bool reflection, Camera gCamera)
 	gShader["NormalMap"].setUniform("uLight.Ld", gLight.Ld);
 	gShader["NormalMap"].setUniform("uLight.Ls", gLight.Ls);
 	gShader["NormalMap"].setUniform("uLight.att", gLight.att);
-
-	// =======WALL=========
 
 	// set material properties
 	gShader["NormalMap"].setUniform("uMaterial.Ka", gMaterial["Wall"].Ka);
@@ -467,29 +466,9 @@ void draw_objects(bool reflection, Camera gCamera)
 	// set viewing position
 	gShader["NormalMap"].setUniform("uViewpoint", gCamera.getPosition());
 
-	// calculate matrices
-	//modelMatrix = reflectMatrix * gModelMatrix["Wall"];
-	//MVP = gCamera.getProjMatrix() * gCamera.getViewMatrix() * modelMatrix;
-	//normalMatrix = glm::mat3(glm::transpose(glm::inverse(modelMatrix)));
-
-	//// set uniform variables
-	//gShader["NormalMap"].setUniform("uModelViewProjectionMatrix", MVP);
-	//gShader["NormalMap"].setUniform("uModelMatrix", modelMatrix);
-	//gShader["NormalMap"].setUniform("uNormalMatrix", normalMatrix);
-
-	//// set texture and normal map
-	//gShader["NormalMap"].setUniform("uTextureSampler", 0);
-	//gShader["NormalMap"].setUniform("uNormalSampler", 1);
-
-	//glActiveTexture(GL_TEXTURE0);
-	//gTexture["Stone"].bind();
-
-	//glActiveTexture(GL_TEXTURE1);
-	//gTexture["StoneNormalMap"].bind();
-
 	glBindVertexArray(gVAO[1]);				// make VAO active
-	//glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);	// render the vertices
 
+	// draw multiple walls at once that surrounds the floor (size of the wall is specified in the vertices array) 
 	for (int i = 0; i < 4; i++) {
 		modelMatrix = reflectMatrix * gModelMatrix["Wall"];
 		MVP = gCamera.getProjMatrix() * gCamera.getViewMatrix() * modelMatrix;
@@ -570,6 +549,7 @@ static void render_scene()
 	 ************************************************************************************/
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 
+	// if multiview is enabled, draw 3 viewports to the scene, else just draw the main one
 	if (gMultiView) {
 		glViewport(0, 0, 512, 384);
 		draw_scene(gCamera[1]);
